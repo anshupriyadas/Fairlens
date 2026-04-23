@@ -11,6 +11,9 @@ import Metrics from "@/pages/metrics";
 import Archaeology from "@/pages/archaeology";
 import Counterfactual from "@/pages/counterfactual";
 import Risk from "@/pages/risk";
+import Monitoring from "@/pages/monitoring";
+import Executive from "@/pages/executive";
+import Legal from "@/pages/legal";
 
 const queryClient = new QueryClient();
 
@@ -19,6 +22,9 @@ function Router() {
     <Layout>
       <Switch>
         <Route path="/" component={Dashboard} />
+        <Route path="/monitoring" component={Monitoring} />
+        <Route path="/executive" component={Executive} />
+        <Route path="/legal" component={Legal} />
         <Route path="/upload" component={Upload} />
         <Route path="/metrics" component={Metrics} />
         <Route path="/archaeology" component={Archaeology} />

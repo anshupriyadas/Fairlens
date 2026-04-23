@@ -1,7 +1,7 @@
 import { LoanRecord, HpsResult, BiasMetric, RegulatoryFlag, AnalysisReport } from "./types";
 import { socioContextDB } from "./socioContext";
 
-export function computeHps(metrics: BiasMetric[], dataset: LoanRecord[]): HpsResult {
+export function computeHps(metrics: BiasMetric[], dataset: LoanRecord[], weights?: HpsWeights, domain?: DomainType): HpsResult {
   let maxDisparity = 0;
   metrics.forEach(m => {
     if (m.demographicParityDifference > maxDisparity) maxDisparity = m.demographicParityDifference;
@@ -11,12 +11,17 @@ export function computeHps(metrics: BiasMetric[], dataset: LoanRecord[]): HpsRes
   dataset.forEach(r => {
     if (socioContextDB[r.zipcode]?.race_correlation > 0.7) proxyStrength += 1;
   });
-  proxyStrength = proxyStrength / dataset.length;
+  proxyStrength = proxyStrength / Math.max(1, dataset.length);
 
-  const domainWeight = 1.0;
+  let domainWeightVal = 1.0;
+  if (domain === "Healthcare") domainWeightVal = 1.5;
+  if (domain === "Hiring") domainWeightVal = 1.2;
+  if (domain === "Recommendations") domainWeightVal = 0.5;
   
-  const rawScore = 0.4 * maxDisparity + 0.3 * proxyStrength + 0.3 * domainWeight;
-  const score = Math.min(100, Math.round(rawScore * 100));
+  const w = weights || { disparity: 0.4, proxyStrength: 0.3, domainWeight: 0.3 };
+  
+  const rawScore = w.disparity * maxDisparity + w.proxyStrength * proxyStrength + w.domainWeight * (domainWeightVal / 1.5);
+  const score = Math.min(100, Math.max(0, Math.round(rawScore * 100)));
 
   let riskLevel: HpsResult["riskLevel"] = "Low";
   if (score > 80) riskLevel = "Critical";

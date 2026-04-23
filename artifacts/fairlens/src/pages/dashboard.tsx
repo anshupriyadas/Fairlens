@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion";
-import { AlertTriangle, TrendingUp, ShieldAlert, FileText, Upload } from "lucide-react";
+import { AlertTriangle, TrendingUp, ShieldAlert, FileText, Upload, Grid } from "lucide-react";
 
 export default function Dashboard() {
   const { dataset, hpsResult, metrics, flags } = useFairLensStore();
@@ -38,6 +38,12 @@ export default function Dashboard() {
   const item = {
     hidden: { opacity: 0, y: 20 },
     show: { opacity: 1, y: 0 }
+  };
+  
+  const getHeatmapColor = (val: number) => {
+    if (val > 0.1) return 'bg-destructive/80 text-white';
+    if (val > 0.05) return 'bg-accent/80 text-white';
+    return 'bg-primary/20 text-foreground';
   };
 
   return (
@@ -114,46 +120,95 @@ export default function Dashboard() {
         </motion.div>
       </div>
 
-      <motion.div variants={item}>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <TrendingUp className="w-4 h-4" />
-              Top Line Disparities
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 divide-y sm:divide-y-0 sm:divide-x divide-border">
-              {metrics.map((m, i) => (
-                <div key={m.attribute} className={`pt-4 sm:pt-0 ${i !== 0 ? 'sm:pl-6' : ''}`}>
-                  <div className="text-sm font-medium capitalize mb-2">{m.attribute}</div>
-                  <div className="space-y-3">
-                    <div>
-                      <div className="flex justify-between text-xs mb-1">
-                        <span className="text-muted-foreground">Demographic Parity Diff</span>
-                        <span className="font-mono">{(m.demographicParityDifference * 100).toFixed(1)}%</span>
-                      </div>
-                      <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full ${m.demographicParityDifference > 0.1 ? 'bg-destructive' : 'bg-primary'}`}
-                          style={{ width: `${Math.min(100, m.demographicParityDifference * 500)}%` }}
-                        />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <motion.div variants={item}>
+          <Card className="h-full">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <Grid className="w-4 h-4" />
+                Risk Heatmap
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr>
+                      <th className="text-left font-medium text-muted-foreground pb-4">Attribute</th>
+                      <th className="text-center font-medium text-muted-foreground pb-4">Demographic Parity</th>
+                      <th className="text-center font-medium text-muted-foreground pb-4">Equalized Odds</th>
+                      <th className="text-center font-medium text-muted-foreground pb-4">Calibration Gap</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {metrics.map((m) => (
+                      <tr key={m.attribute}>
+                        <td className="py-3 font-medium capitalize">{m.attribute}</td>
+                        <td className="py-3 px-2">
+                          <div className={`py-1.5 rounded text-center text-xs font-mono font-medium ${getHeatmapColor(m.demographicParityDifference)}`}>
+                            {(m.demographicParityDifference * 100).toFixed(1)}%
+                          </div>
+                        </td>
+                        <td className="py-3 px-2">
+                          <div className={`py-1.5 rounded text-center text-xs font-mono font-medium ${getHeatmapColor(m.equalizedOddsDifference)}`}>
+                            {(m.equalizedOddsDifference * 100).toFixed(1)}%
+                          </div>
+                        </td>
+                        <td className="py-3 px-2">
+                          <div className={`py-1.5 rounded text-center text-xs font-mono font-medium ${getHeatmapColor(m.calibrationGap)}`}>
+                            {(m.calibrationGap * 100).toFixed(1)}%
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+        
+        <motion.div variants={item}>
+          <Card className="h-full">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <TrendingUp className="w-4 h-4" />
+                Top Line Disparities
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {metrics.map((m) => (
+                  <div key={m.attribute}>
+                    <div className="text-sm font-medium capitalize mb-2">{m.attribute}</div>
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-muted-foreground">Demographic Parity Diff</span>
+                          <span className="font-mono">{(m.demographicParityDifference * 100).toFixed(1)}%</span>
+                        </div>
+                        <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full ${m.demographicParityDifference > 0.1 ? 'bg-destructive' : 'bg-primary'}`}
+                            style={{ width: `${Math.min(100, m.demographicParityDifference * 500)}%` }}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-6 flex justify-end">
-              <Link href="/metrics">
-                <Button variant="outline" size="sm" data-testid="btn-view-metrics">
-                  View full metrics engine →
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+                ))}
+              </div>
+              <div className="mt-6 flex justify-end">
+                <Link href="/metrics">
+                  <Button variant="outline" size="sm" data-testid="btn-view-metrics">
+                    View full metrics engine →
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
     </motion.div>
   );
 }

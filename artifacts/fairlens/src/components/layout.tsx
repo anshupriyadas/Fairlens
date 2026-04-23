@@ -1,27 +1,32 @@
 import { Link, useLocation } from "wouter";
 import { useFairLensStore } from "@/lib/store";
 import { useTheme } from "./theme-provider";
-import { Moon, Sun, LayoutDashboard, UploadCloud, BarChart3, Search, SlidersHorizontal, AlertTriangle } from "lucide-react";
+import { Moon, Sun, LayoutDashboard, UploadCloud, BarChart3, Search, SlidersHorizontal, AlertTriangle, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ViewMode } from "@/lib/types";
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const [location] = useLocation();
-  const { dataset } = useFairLensStore();
+  const [location, setLocation] = useLocation();
+  const { dataset, alerts, viewMode, setViewMode } = useFairLensStore();
   const { theme, setTheme } = useTheme();
 
   const navItems = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/monitoring", label: "Live Monitor", icon: Activity },
     { href: "/upload", label: "Data Ingestion", icon: UploadCloud },
     { href: "/metrics", label: "Bias Metrics", icon: BarChart3 },
     { href: "/archaeology", label: "Archaeology", icon: Search },
     { href: "/counterfactual", label: "Counterfactuals", icon: SlidersHorizontal },
     { href: "/risk", label: "Risk Report", icon: AlertTriangle },
   ];
+  
+  const unseenAlerts = alerts.length;
 
   return (
     <div className="flex h-screen bg-background text-foreground overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-64 border-r border-border bg-card flex flex-col">
+      <aside className="w-64 border-r border-border bg-card flex flex-col shrink-0">
         <div className="p-6">
           <div className="flex items-center gap-2 text-primary">
             <Search className="h-6 w-6" />
@@ -32,15 +37,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {navItems.map((item) => (
             <Link key={item.href} href={item.href}>
               <div
-                className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors cursor-pointer ${
+                className={`flex items-center justify-between px-3 py-2 rounded-md transition-colors cursor-pointer ${
                   location === item.href
                     ? "bg-primary/10 text-primary font-medium"
                     : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                 }`}
                 data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
               >
-                <item.icon className="h-4 w-4" />
-                {item.label}
+                <div className="flex items-center gap-3">
+                  <item.icon className="h-4 w-4" />
+                  {item.label}
+                </div>
+                {item.label === "Live Monitor" && unseenAlerts > 0 && (
+                  <span className="bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                    {unseenAlerts}
+                  </span>
+                )}
               </div>
             </Link>
           ))}
@@ -62,10 +74,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Topbar */}
         <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6 shrink-0">
-          <div className="text-sm font-medium text-muted-foreground">
-            Contextual Bias Intelligence Platform
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium text-muted-foreground">
+              Contextual Bias Intelligence Platform
+            </span>
           </div>
           <div className="flex items-center gap-4">
+            <Tabs value={viewMode} onValueChange={(val) => {
+              setViewMode(val as ViewMode);
+              if (val === "Technical") setLocation("/");
+              else if (val === "Executive") setLocation("/executive");
+              else if (val === "Legal") setLocation("/legal");
+            }}>
+              <TabsList className="h-9">
+                <TabsTrigger value="Technical" data-testid="view-technical">Technical</TabsTrigger>
+                <TabsTrigger value="Executive" data-testid="view-executive">Executive</TabsTrigger>
+                <TabsTrigger value="Legal" data-testid="view-legal">Legal</TabsTrigger>
+              </TabsList>
+            </Tabs>
             <Button
               variant="ghost"
               size="icon"

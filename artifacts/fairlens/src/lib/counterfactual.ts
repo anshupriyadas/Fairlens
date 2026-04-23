@@ -8,7 +8,6 @@ export function findMinimalFlip(
   // Simple heuristic: find the top feature that contributes to the current prediction
   // and flip it to a typical opposite value.
   const contributions = computeShap(record, datasetAvg);
-  const targetProb = record.prediction === "Approved" ? 0.4 : 0.6; // We want to cross 0.5
   
   // Try flipping protected attributes first as they are most insightful for bias
   if (record.prediction === "Rejected") {
@@ -27,6 +26,29 @@ export function findMinimalFlip(
     }
     return { feature: "credit_score", from: record.credit_score, to: Math.max(300, record.credit_score - 100) };
   }
+}
+
+export function mostImpactfulAttribute(record: LoanRecord): { feature: string; impact: number } {
+  // Mock logic to determine which single feature change would swing the score the most
+  const isRejected = record.prediction === "Rejected";
+  if (isRejected && record.gender !== "Male") return { feature: "gender", impact: 0.08 };
+  if (isRejected && ["94601", "94605", "94621"].includes(record.zipcode)) return { feature: "zipcode", impact: 0.15 };
+  return { feature: "credit_score", impact: 0.10 };
+}
+
+export function batchCounterfactual(records: LoanRecord[], protectedAttr: string, targetClass: string) {
+  // Mock logic: return a dummy subgroup flip rates array
+  if (protectedAttr === "gender") {
+    return [
+      { subgroup: "Male", flipRate: 0.05 },
+      { subgroup: "Female", flipRate: 0.22 },
+      { subgroup: "Non-binary", flipRate: 0.18 },
+    ];
+  }
+  return [
+    { subgroup: "High-income Zip", flipRate: 0.08 },
+    { subgroup: "Low-income Zip", flipRate: 0.35 },
+  ];
 }
 
 export function computePredictionProba(record: Partial<LoanRecord>): number {

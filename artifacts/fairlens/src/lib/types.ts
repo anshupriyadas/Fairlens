@@ -1,4 +1,21 @@
 export type Prediction = "Approved" | "Rejected";
+export type ViewMode = "Technical" | "Executive" | "Legal";
+export type DriftMode = "none" | "gender" | "zipcode";
+export type DomainType = "Loan" | "Hiring" | "Recommendations" | "Healthcare";
+
+export interface StreamAlert {
+  id: string;
+  timestamp: number;
+  message: string;
+  metric: string;
+  value: number;
+}
+
+export interface HpsWeights {
+  disparity: number;
+  proxyStrength: number;
+  domainWeight: number;
+}
 
 export interface LoanRecord {
   id: string;

@@ -1,8 +1,9 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { LoanRecord, BiasMetric, HpsResult, RegulatoryFlag, AnalysisReport } from "./types";
+import { LoanRecord, BiasMetric, HpsResult, RegulatoryFlag, AnalysisReport, StreamAlert, DriftMode, ViewMode, HpsWeights, DomainType } from "./types";
 import { computeAllMetrics } from "./biasMetrics";
 import { computeHps, computeRegulatoryFlags, generateReport } from "./hps";
+import { startStream } from "./streamSimulator";
 
 interface FairLensState {
   dataset: LoanRecord[] | null;
@@ -13,14 +14,35 @@ interface FairLensState {
   report: AnalysisReport | null;
   selectedRecordId: string | null;
   
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
+  
+  streamEvents: LoanRecord[];
+  isStreaming: boolean;
+  driftMode: DriftMode;
+  alerts: StreamAlert[];
+  threshold: number;
+  _stopStream: (() => void) | null;
+  
+  hpsWeights: HpsWeights;
+  hpsDomain: DomainType;
+  setHpsConfig: (weights: HpsWeights, domain: DomainType) => void;
+
   setDataset: (data: LoanRecord[]) => void;
   setSelectedRecordId: (id: string | null) => void;
   clearState: () => void;
+  
+  startStream: () => void;
+  stopStream: () => void;
+  resetStream: () => void;
+  setDriftMode: (mode: DriftMode) => void;
+  setThreshold: (val: number) => void;
+  pushAlert: (alert: StreamAlert) => void;
 }
 
 export const useFairLensStore = create<FairLensState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       dataset: null,
       detectedProtectedAttrs: ["gender", "race", "zipcode"],
       metrics: [],
@@ -28,11 +50,36 @@ export const useFairLensStore = create<FairLensState>()(
       flags: [],
       report: null,
       selectedRecordId: null,
+      
+      viewMode: "Technical",
+      setViewMode: (mode) => set({ viewMode: mode }),
+
+      streamEvents: [],
+      isStreaming: false,
+      driftMode: "none",
+      alerts: [],
+      threshold: 0.10,
+      _stopStream: null,
+      
+      hpsWeights: { disparity: 0.4, proxyStrength: 0.3, domainWeight: 0.3 },
+      hpsDomain: "Loan",
+      
+      setHpsConfig: (weights, domain) => {
+        set({ hpsWeights: weights, hpsDomain: domain });
+        const { dataset, metrics } = get();
+        if (dataset && metrics.length > 0) {
+          const hps = computeHps(metrics, dataset, weights, domain);
+          const flags = computeRegulatoryFlags(metrics, hps);
+          const report = generateReport(metrics, hps, flags);
+          set({ hpsResult: hps, flags, report });
+        }
+      },
 
       setDataset: (data) => {
+        const { hpsWeights, hpsDomain } = get();
         const attrs = ["gender", "race", "zipcode"];
         const metrics = computeAllMetrics(data, attrs);
-        const hps = computeHps(metrics, data);
+        const hps = computeHps(metrics, data, hpsWeights, hpsDomain);
         const flags = computeRegulatoryFlags(metrics, hps);
         const report = generateReport(metrics, hps, flags);
         
@@ -48,18 +95,75 @@ export const useFairLensStore = create<FairLensState>()(
 
       setSelectedRecordId: (id) => set({ selectedRecordId: id }),
       
-      clearState: () => set({
-        dataset: null,
-        metrics: [],
-        hpsResult: null,
-        flags: [],
-        report: null,
-        selectedRecordId: null,
-      })
+      clearState: () => {
+        const { stopStream } = get();
+        stopStream();
+        set({
+          dataset: null,
+          metrics: [],
+          hpsResult: null,
+          flags: [],
+          report: null,
+          selectedRecordId: null,
+          streamEvents: [],
+          alerts: []
+        });
+      },
+      
+      startStream: () => {
+        const { isStreaming, driftMode, _stopStream } = get();
+        if (isStreaming) return;
+        
+        if (_stopStream) _stopStream();
+        
+        const stop = startStream((record) => {
+          set((state) => {
+            const newEvents = [record, ...state.streamEvents].slice(0, 500);
+            return { streamEvents: newEvents };
+          });
+        }, { driftMode });
+        
+        set({ isStreaming: true, _stopStream: stop });
+      },
+      
+      stopStream: () => {
+        const { _stopStream } = get();
+        if (_stopStream) _stopStream();
+        set({ isStreaming: false, _stopStream: null });
+      },
+      
+      resetStream: () => {
+        const { stopStream } = get();
+        stopStream();
+        set({ streamEvents: [], alerts: [] });
+      },
+      
+      setDriftMode: (mode) => {
+        const { isStreaming, stopStream, startStream } = get();
+        set({ driftMode: mode });
+        if (isStreaming) {
+          stopStream();
+          startStream();
+        }
+      },
+      
+      setThreshold: (val) => set({ threshold: val }),
+      pushAlert: (alert) => set((state) => ({ alerts: [alert, ...state.alerts] }))
     }),
     {
       name: "fairlens-storage",
       storage: createJSONStorage(() => sessionStorage),
+      partialize: (state) => ({ 
+        dataset: state.dataset, 
+        metrics: state.metrics, 
+        hpsResult: state.hpsResult, 
+        flags: state.flags, 
+        report: state.report, 
+        selectedRecordId: state.selectedRecordId,
+        viewMode: state.viewMode,
+        hpsWeights: state.hpsWeights,
+        hpsDomain: state.hpsDomain
+      }),
     }
   )
 );
