@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useFairLensStore } from "@/lib/store";
 import { useTheme } from "./theme-provider";
-import { Moon, Sun, LayoutDashboard, UploadCloud, BarChart3, Search, SlidersHorizontal, AlertTriangle, Activity } from "lucide-react";
+import { Moon, Sun, LayoutDashboard, UploadCloud, BarChart3, Search, SlidersHorizontal, AlertTriangle, Activity, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ViewMode } from "@/lib/types";
@@ -18,6 +18,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/metrics", label: "Bias Metrics", icon: BarChart3 },
     { href: "/archaeology", label: "Archaeology", icon: Search },
     { href: "/counterfactual", label: "Counterfactuals", icon: SlidersHorizontal },
+    { href: "/mitigation", label: "Mitigation", icon: Wand2 },
     { href: "/risk", label: "Risk Report", icon: AlertTriangle },
   ];
   

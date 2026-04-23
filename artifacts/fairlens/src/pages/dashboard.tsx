@@ -86,9 +86,16 @@ export default function Dashboard() {
                 <p className="text-sm text-muted-foreground">
                   {pipelineResult.stages.decision.summary}
                 </p>
-                <div className="mt-3 flex gap-4 text-xs font-medium">
-                  <span>Sample: {dataset.length} records</span>
-                  <span>Deciding Metric: DP Diff ({(pipelineResult.stages.decision.decidingMetric * 100).toFixed(1)}%)</span>
+                <div className="mt-3 flex items-center justify-between">
+                  <div className="flex gap-4 text-xs font-medium">
+                    <span>Sample: {dataset.length} records</span>
+                    <span>Deciding Metric: DP Diff ({(pipelineResult.stages.decision.decidingMetric * 100).toFixed(1)}%)</span>
+                  </div>
+                  <Link href="/mitigation">
+                    <Button variant="link" size="sm" className="h-auto p-0 text-accent font-bold">
+                      View Mitigation Strategies &rarr;
+                    </Button>
+                  </Link>
                 </div>
               </div>
             </div>

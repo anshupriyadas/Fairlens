@@ -30,6 +30,7 @@ export default function Upload() {
   const [currentStageId, setCurrentStageId] = useState("");
   const [pipelineFinished, setPipelineFinished] = useState(false);
   const [localDataset, setLocalDataset] = useState<any[]>([]);
+  const [showCompleteOverlay, setShowCompleteOverlay] = useState(false);
 
   const handleLoadSample = async () => {
     setIsProcessing(true);
@@ -50,7 +51,10 @@ export default function Upload() {
       setPipelineFinished(true);
     } else {
       setDataset(data);
-      setLocation("/");
+      setShowCompleteOverlay(true);
+      setTimeout(() => {
+        setLocation("/");
+      }, 1000);
     }
   };
 
@@ -187,6 +191,31 @@ export default function Upload() {
           )}
         </CardContent>
       </Card>
+      
+      <AnimatePresence>
+        {showCompleteOverlay && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-card border border-border p-8 rounded-2xl shadow-2xl text-center space-y-4"
+            >
+              <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto text-primary">
+                <CheckCircle2 className="w-10 h-10" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-foreground">Analysis Complete</h3>
+                <p className="text-muted-foreground">Opening dashboard...</p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -11,9 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getRemediations } from "@/lib/remediation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DomainType } from "@/lib/types";
+import { exportAuditReport } from "@/lib/pdfExport";
+import { toast } from "sonner";
 
 export default function Risk() {
-  const { dataset, hpsResult, flags, report, hpsWeights, hpsDomain, setHpsConfig } = useFairLensStore();
+  const state = useFairLensStore();
+  const { dataset, hpsResult, flags, report, hpsWeights, hpsDomain, setHpsConfig, pipelineResult } = state;
   const [gaugeValue, setGaugeValue] = useState(0);
 
   useEffect(() => {
@@ -23,6 +26,7 @@ export default function Risk() {
       }, 50);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [hpsResult]);
 
   if (!dataset || !hpsResult || !report) {
@@ -41,6 +45,16 @@ export default function Risk() {
       </div>
     );
   }
+
+  const handleDownloadPDF = () => {
+    try {
+      exportAuditReport(state);
+      toast.success("Report downloaded");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to generate PDF");
+    }
+  };
 
   const handlePrint = () => {
     window.print();
@@ -63,9 +77,14 @@ export default function Risk() {
           <h1 className="text-3xl font-bold tracking-tight mb-2">Compliance Risk Report</h1>
           <p className="text-muted-foreground">Executive summary and formal regulatory findings.</p>
         </div>
-        <Button onClick={handlePrint} variant="outline" className="gap-2">
-          <Download className="w-4 h-4" /> Download PDF
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleDownloadPDF} variant="outline" className="gap-2">
+            <Download className="w-4 h-4" /> Download Audit Report (PDF)
+          </Button>
+          <Button onClick={handlePrint} variant="ghost" size="icon" className="print:hidden">
+            <Download className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -198,12 +217,12 @@ export default function Risk() {
           </Card>
 
           {/* Bias Driver Reasoning */}
-          {useFairLensStore.getState().pipelineResult?.stages.archaeology?.reasoningChains && (
+          {pipelineResult?.stages.archaeology?.reasoningChains && (
             <div className="space-y-4 print:break-inside-avoid" data-testid="bias-driver-reasoning">
               <h3 className="text-xl font-bold flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5" /> Bias Driver Reasoning
               </h3>
-              {useFairLensStore.getState().pipelineResult!.stages.archaeology.reasoningChains.map((chain: any, i: number) => (
+              {pipelineResult!.stages.archaeology.reasoningChains.map((chain: any, i: number) => (
                 <Card key={i} className="border-border bg-secondary/10">
                   <CardContent className="p-4 flex gap-4 items-start">
                     <div className="flex-1">

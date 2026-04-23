@@ -10,6 +10,7 @@ import Upload from "@/pages/upload";
 import Metrics from "@/pages/metrics";
 import Archaeology from "@/pages/archaeology";
 import Counterfactual from "@/pages/counterfactual";
+import Mitigation from "@/pages/mitigation";
 import Risk from "@/pages/risk";
 import Monitoring from "@/pages/monitoring";
 import Executive from "@/pages/executive";
@@ -29,6 +30,7 @@ function Router() {
         <Route path="/metrics" component={Metrics} />
         <Route path="/archaeology" component={Archaeology} />
         <Route path="/counterfactual" component={Counterfactual} />
+        <Route path="/mitigation" component={Mitigation} />
         <Route path="/risk" component={Risk} />
         <Route component={NotFound} />
       </Switch>

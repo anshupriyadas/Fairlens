@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Play, Pause, RotateCcw, Activity } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, AreaChart, Area } from "recharts";
 import { computeSubgroupRates, computeDemographicParityDifference } from "@/lib/biasMetrics";
 import { DriftMode } from "@/lib/types";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
 
 export default function Monitoring() {
   const { 
@@ -50,6 +51,44 @@ export default function Monitoring() {
     
     return data.slice(-20); // Last 20 data points
   }, [streamEvents]);
+
+  const driftHistoryData = useMemo(() => {
+    const data = [];
+    const windowSize = 20;
+    const step = 5;
+    const events = [...streamEvents].reverse().slice(-200);
+    
+    for (let i = 0; i < events.length; i += step) {
+      const windowEvents = events.slice(Math.max(0, i - windowSize), i);
+      if (windowEvents.length < 10) continue;
+      
+      const genderRates = computeSubgroupRates(windowEvents, "gender");
+      const dpDiff = computeDemographicParityDifference(genderRates);
+      
+      data.push({
+        index: i,
+        dpDiff: dpDiff * 100,
+      });
+    }
+    return data;
+  }, [streamEvents]);
+
+  const trend = useMemo(() => {
+    if (driftHistoryData.length < 5) return "stable";
+    const last5 = driftHistoryData.slice(-5);
+    const n = last5.length;
+    let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+    last5.forEach((d, i) => {
+      sumX += i;
+      sumY += d.dpDiff;
+      sumXY += i * d.dpDiff;
+      sumXX += i * i;
+    });
+    const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+    if (slope > 0.5) return "rising";
+    if (slope < -0.5) return "falling";
+    return "stable";
+  }, [driftHistoryData]);
 
   // Alert generation effect
   useEffect(() => {
@@ -182,6 +221,48 @@ export default function Monitoring() {
                   dataKey="dpDiff" 
                   stroke="hsl(var(--primary))" 
                   strokeWidth={3}
+                  dot={false}
+                  isAnimationActive={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2 flex flex-col">
+          <CardHeader className="pb-2">
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle>Bias Drift History (rolling)</CardTitle>
+                <CardDescription>Rolling DP-diff over last 200 stream events (20-event window)</CardDescription>
+              </div>
+              <Badge variant={trend === "rising" ? "destructive" : trend === "falling" ? "default" : "secondary"}>
+                Trend: {trend}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="flex-1 min-h-[300px] pt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={driftHistoryData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                <XAxis dataKey="index" hide />
+                <YAxis 
+                  domain={[0, Math.max(30, (threshold * 100) + 10)]} 
+                  tickFormatter={(val) => `${val}%`}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))' }}
+                  formatter={(val: number) => [`${val.toFixed(1)}%`, 'DP Difference']}
+                />
+                <ReferenceLine y={threshold * 100} stroke="hsl(var(--destructive))" strokeDasharray="5 5" label={{ position: 'top', value: 'Threshold', fill: 'hsl(var(--destructive))', fontSize: 10 }} />
+                <Line 
+                  type="monotone" 
+                  dataKey="dpDiff" 
+                  stroke="hsl(var(--destructive))" 
+                  strokeWidth={2}
                   dot={false}
                   isAnimationActive={false}
                 />
