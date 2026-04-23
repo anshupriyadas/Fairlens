@@ -1,0 +1,175 @@
+You are a senior full-stack engineer and product architect.
+
+Take the existing FairLens system and do the following:
+
+---
+
+## 🎯 GOAL
+1. Fix all bugs, broken flows, and incomplete logic
+2. Improve code quality and structure
+3. Add new unique, high-impact features
+4. Make the product feel like a real startup-ready platform
+
+DO NOT remove existing features — only improve and extend them.
+
+---
+
+## 🛠️ PART 1: FIX & STABILIZE
+
+- Debug all backend APIs (FastAPI)
+- Ensure:
+  - Upload → Analysis → Results flow works end-to-end
+  - SHAP and DiCE integrations run without failure
+- Handle:
+  - Invalid datasets
+  - Missing values
+  - Model incompatibility
+
+- Improve:
+  - Error handling (clear messages)
+  - Logging system
+  - API response consistency
+
+---
+
+## 🧱 PART 2: CLEAN ARCHITECTURE
+
+Refactor code into modules:
+
+Backend:
+- ingestion/
+- bias_metrics/
+- archaeology/
+- counterfactual/
+- scoring/
+- reporting/
+
+Frontend:
+- pages/
+- components/
+- hooks/
+- services/
+
+Ensure:
+- Clean separation of concerns
+- Reusable functions
+- Maintainable structure
+
+---
+
+## ✨ PART 3: ADD UNIQUE MARKET-READY FEATURES
+
+### 1. 🔍 Bias Heatmap (NEW)
+- Visual grid showing:
+  - Which groups are most affected
+- Easy for executives to understand instantly
+
+---
+
+### 2. 🧠 Bias Explanation Chatbot (NEW)
+- Add LLM-powered chat:
+  - “Why was this decision biased?”
+  - “How can we fix it?”
+- Answer in simple language
+
+---
+
+### 3. 🔄 Auto-Mitigation Suggestions (NEW)
+- Suggest fixes:
+  - Reweighting
+  - Dropping proxy features
+  - Fairness constraints
+- Show expected improvement
+
+---
+
+### 4. 📊 Before vs After Fairness Comparison (NEW)
+- Show:
+  - Current model vs improved model
+- Visual comparison charts
+
+---
+
+### 5. ⏱️ Bias Drift Monitoring (NEW)
+- Track bias over time
+- Show trend graph
+- Alert if bias increases
+
+---
+
+### 6. 🧾 One-Click Audit Report (IMPROVE)
+- Export:
+  - Clean PDF
+  - Executive summary
+  - Legal mapping
+- Make it visually polished
+
+---
+
+### 7. 🧑‍🤝‍🧑 Multi-User Roles (NEW)
+- Admin / Analyst / Viewer roles
+- Permissions control
+
+---
+
+### 8. 🎯 Demo Mode (VERY IMPORTANT)
+- Add preloaded dataset + model
+- So judges can try instantly without setup
+
+---
+
+## 🎨 PART 4: UI/UX POLISH
+
+- Add:
+  - Step-by-step workflow UI
+  - Progress indicators
+  - Smooth transitions
+
+- Improve:
+  - Dashboard clarity
+  - Visual hierarchy
+  - Color-coded risk levels
+
+---
+
+## ⚡ PART 5: PERFORMANCE
+
+- Optimize:
+  - SHAP (sampling / approximate)
+  - Large dataset handling
+
+- Add:
+  - Async processing (Celery/Redis)
+  - Caching
+
+---
+
+## 🔐 PART 6: PRODUCTION READINESS
+
+- Add:
+  - Authentication (JWT)
+  - Secure file uploads
+  - Data isolation per user
+
+---
+
+## 📦 FINAL OUTPUT
+
+Deliver:
+1. Fully working backend
+2. Fully working frontend
+3. Clean UI
+4. Demo-ready system
+5. No broken features
+
+---
+
+## 🚀 PRIORITY
+
+Focus on:
+- Smooth user experience
+- Strong visual outputs
+- Real-world usefulness
+- Demo readiness
+
+Make it feel like a product, not a prototype.
