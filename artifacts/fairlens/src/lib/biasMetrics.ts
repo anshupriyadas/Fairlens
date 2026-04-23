@@ -1,10 +1,22 @@
 import { LoanRecord, BiasMetric } from "./types";
 
+function bucketValue(attribute: string, raw: any): string {
+  if (attribute === "age") {
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return "unknown";
+    if (n < 30) return "<30";
+    if (n < 45) return "30-44";
+    if (n < 60) return "45-59";
+    return "60+";
+  }
+  return String(raw);
+}
+
 export function computeSubgroupRates(dataset: LoanRecord[], attribute: keyof LoanRecord) {
   const rates: Record<string, { approvalRate: number; count: number, approved: number }> = {};
   
   dataset.forEach((row) => {
-    const val = String(row[attribute]);
+    const val = bucketValue(String(attribute), row[attribute]);
     if (!rates[val]) rates[val] = { approvalRate: 0, count: 0, approved: 0 };
     rates[val].count++;
     if (row.prediction === "Approved") rates[val].approved++;
