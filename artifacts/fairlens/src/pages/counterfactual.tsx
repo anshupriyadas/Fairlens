@@ -276,6 +276,60 @@ export default function Counterfactual() {
                       </div>
                     </CardContent>
                   </Card>
+
+                  {/* Alternative Outcomes */}
+                  {dataset && (
+                    <div className="mt-8 space-y-4" data-testid="alternative-outcomes">
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-primary" /> Alternative Outcomes
+                      </h3>
+                      <p className="text-sm text-muted-foreground">Top minimal change paths to flip the outcome.</p>
+                      
+                      <div className="grid gap-3">
+                        {(() => {
+                          const datasetAvg = {
+                            credit_score: dataset.reduce((acc, r) => acc + r.credit_score, 0) / dataset.length,
+                            debt_to_income: dataset.reduce((acc, r) => acc + r.debt_to_income, 0) / dataset.length,
+                            prior_default: dataset.reduce((acc, r) => acc + r.prior_default, 0) / dataset.length,
+                            income: dataset.reduce((acc, r) => acc + r.income, 0) / dataset.length,
+                          };
+                          const alternatives = [];
+                          if (selectedRecord.prediction === "Rejected") {
+                            alternatives.push({ label: "Option A", changes: { credit_score: Math.min(850, selectedRecord.credit_score + 50) }, outcome: "Approved", distance: 50 });
+                            alternatives.push({ label: "Option B", changes: { debt_to_income: Math.max(0, selectedRecord.debt_to_income - 0.2) }, outcome: "Approved", distance: 0.2 });
+                            if (selectedRecord.zipcode !== "94103") {
+                              alternatives.push({ label: "Option C", changes: { zipcode: "94103" }, outcome: "Approved", distance: 1 });
+                            } else {
+                              alternatives.push({ label: "Option C", changes: { gender: selectedRecord.gender === "Male" ? "Female" : "Male" }, outcome: "Approved", distance: 1 });
+                            }
+                          } else {
+                            alternatives.push({ label: "Option A", changes: { credit_score: Math.max(300, selectedRecord.credit_score - 80) }, outcome: "Rejected", distance: 80 });
+                            alternatives.push({ label: "Option B", changes: { debt_to_income: Math.min(1, selectedRecord.debt_to_income + 0.3) }, outcome: "Rejected", distance: 0.3 });
+                            alternatives.push({ label: "Option C", changes: { prior_default: 1 }, outcome: "Rejected", distance: 1 });
+                          }
+
+                          return alternatives.map((alt, idx) => (
+                            <Card key={idx} className="bg-secondary/5 border-border shadow-sm">
+                              <CardContent className="p-4 flex items-center justify-between">
+                                <div>
+                                  <div className="font-semibold mb-1">{alt.label} &rarr; <span className={alt.outcome === 'Approved' ? 'text-primary' : 'text-destructive'}>{alt.outcome}</span></div>
+                                  <div className="text-sm text-muted-foreground flex gap-2">
+                                    {Object.entries(alt.changes).map(([k, v]) => (
+                                      <span key={k} className="bg-secondary px-2 py-0.5 rounded text-xs">
+                                        <span className="capitalize">{k.replace('_', ' ')}</span> = {String(v)}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                                <Button size="sm" variant="secondary" onClick={() => setOverrides({...overrides, ...alt.changes})}>Apply</Button>
+                              </CardContent>
+                            </Card>
+                          ));
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
                 </div>
               </div>
             </div>

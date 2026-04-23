@@ -4,42 +4,62 @@ import { generateSampleData } from "@/lib/sampleData";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { UploadCloud, CheckCircle2, Loader2, Database } from "lucide-react";
+import { UploadCloud, CheckCircle2, Loader2, Database, ShieldAlert, CheckCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { runPipeline } from "@/lib/pipeline";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 const STAGES = [
-  "Detecting protected attributes...",
-  "Computing parity metrics...",
-  "Estimating SHAP attributions...",
-  "Mapping socioeconomic context...",
-  "Calculating Harm Probability Score..."
+  { id: "validate", label: "Validating Input" },
+  { id: "detect", label: "Detecting Protected Attributes" },
+  { id: "preScan", label: "Pre-Scanning for Risk" },
+  { id: "disparity", label: "Computing Parity Metrics" },
+  { id: "decision", label: "Evaluating Decision Node" },
+  { id: "archaeology", label: "Mapping Context & Archaeology" },
+  { id: "counterfactual", label: "Generating Counterfactuals" },
+  { id: "hps", label: "Calculating Harm Probability Score" },
+  { id: "regulatory", label: "Checking Regulatory Flags" },
+  { id: "done", label: "Analysis Complete" }
 ];
 
 export default function Upload() {
   const [, setLocation] = useLocation();
-  const { setDataset } = useFairLensStore();
+  const { setDataset, setPipelineResult, setDetectedAttrs, detectedAttrs, toggleAttribute, runFullAnalysisOverride } = useFairLensStore();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [stage, setStage] = useState(0);
+  const [currentStageId, setCurrentStageId] = useState("");
+  const [pipelineFinished, setPipelineFinished] = useState(false);
+  const [localDataset, setLocalDataset] = useState<any[]>([]);
 
-  const handleLoadSample = () => {
+  const handleLoadSample = async () => {
     setIsProcessing(true);
-    setStage(0);
-
-    // Fake the processing stages
-    let currentStage = 0;
-    const interval = setInterval(() => {
-      currentStage++;
-      if (currentStage < STAGES.length) {
-        setStage(currentStage);
-      } else {
-        clearInterval(interval);
-        const data = generateSampleData(400);
-        setDataset(data);
-        setIsProcessing(false);
-        setLocation("/");
-      }
-    }, 400); // 400ms per stage = ~2s total
+    setPipelineFinished(false);
+    const data = generateSampleData(400);
+    setLocalDataset(data);
+    
+    const result = await runPipeline(data, {
+      onProgress: (stage) => setCurrentStageId(stage)
+    });
+    
+    setPipelineResult(result);
+    if (result.stages.detect.attributes) {
+      setDetectedAttrs(result.stages.detect.attributes);
+    }
+    
+    if (result.fastPass) {
+      setPipelineFinished(true);
+    } else {
+      setDataset(data);
+      setLocation("/");
+    }
   };
+
+  const handleOverride = () => {
+    runFullAnalysisOverride(localDataset);
+    setLocation("/");
+  };
+
+  const currentIndex = STAGES.findIndex(s => s.id === currentStageId);
 
   return (
     <div className="h-full flex items-center justify-center max-w-2xl mx-auto w-full">
@@ -54,63 +74,109 @@ export default function Upload() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 pb-10 px-10">
-          <div className="border-2 border-dashed border-border rounded-xl p-12 text-center bg-secondary/30 transition-colors hover:bg-secondary/50">
-            <UploadCloud className="w-10 h-10 text-muted-foreground mx-auto mb-4" />
-            <h3 className="font-semibold text-lg mb-1">Drag and drop CSV</h3>
-            <p className="text-sm text-muted-foreground mb-6">
-              Must include features, predicted classes, and probabilities.
-            </p>
-            <Button variant="secondary" disabled>Browse Files</Button>
-          </div>
+          {!isProcessing && !pipelineFinished ? (
+            <>
+              <div className="border-2 border-dashed border-border rounded-xl p-12 text-center bg-secondary/30 transition-colors hover:bg-secondary/50">
+                <UploadCloud className="w-10 h-10 text-muted-foreground mx-auto mb-4" />
+                <h3 className="font-semibold text-lg mb-1">Drag and drop CSV</h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Must include features, predicted classes, and probabilities.
+                </p>
+                <Button variant="secondary" disabled>Browse Files</Button>
+              </div>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-border" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground font-medium">Or</span>
-            </div>
-          </div>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground font-medium">Or</span>
+                </div>
+              </div>
 
-          {!isProcessing ? (
-            <Button 
-              className="w-full h-14 text-base" 
-              onClick={handleLoadSample}
-              data-testid="btn-load-sample"
-            >
-              Use Sample Loan-Approval Dataset
-            </Button>
+              <Button 
+                className="w-full h-14 text-base" 
+                onClick={handleLoadSample}
+                data-testid="btn-load-sample"
+              >
+                Use Sample Loan-Approval Dataset
+              </Button>
+            </>
+          ) : pipelineFinished ? (
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
+              <div className="bg-primary/10 border border-primary/20 rounded-xl p-6 text-center" data-testid="fast-pass-card">
+                <CheckCircle className="w-16 h-16 text-primary mx-auto mb-4" />
+                <h2 className="text-2xl font-bold text-primary mb-2">Low Bias Risk — Fast Pass</h2>
+                <p className="text-muted-foreground mb-4">
+                  Initial scans show minimal disparities across detected protected attributes. Detailed disparity analysis has been skipped.
+                </p>
+                <div className="flex justify-center gap-4 text-sm font-medium mb-6">
+                  <span className="bg-primary/20 text-primary px-3 py-1 rounded-full">Confidence: 95%</span>
+                  <span className="bg-secondary px-3 py-1 rounded-full">Records: {localDataset.length}</span>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <h3 className="font-semibold">Detected Protected Attributes</h3>
+                <div className="space-y-3">
+                  {detectedAttrs.map(attr => (
+                    <div key={attr.column} className="flex items-center justify-between bg-secondary/30 p-3 rounded-lg border border-border">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-semibold">{attr.column}</span>
+                          <span className="text-xs text-muted-foreground uppercase">{attr.type}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground">{attr.reason}</div>
+                        <div className="mt-2 h-1.5 w-full bg-secondary rounded-full overflow-hidden max-w-xs">
+                          <div className="h-full bg-primary" style={{ width: `${attr.confidence * 100}%` }} />
+                        </div>
+                      </div>
+                      <Switch 
+                        checked={attr.enabled} 
+                        onCheckedChange={() => toggleAttribute(attr.column)} 
+                      />
+                    </div>
+                  ))}
+                  <Button variant="outline" size="sm" className="w-full border-dashed" disabled>+ Add manual attribute</Button>
+                </div>
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <Button variant="outline" className="flex-1" onClick={() => { setIsProcessing(false); setPipelineFinished(false); }}>Cancel</Button>
+                <Button className="flex-1" onClick={handleOverride} data-testid="btn-run-full-analysis">Run full analysis anyway</Button>
+              </div>
+            </motion.div>
           ) : (
-            <div className="bg-secondary/50 rounded-xl p-6 space-y-4">
+            <div className="bg-secondary/50 rounded-xl p-6 space-y-4" data-testid="pipeline-stepper">
               <div className="flex justify-between text-sm font-medium mb-2">
-                <span>Processing Case File...</span>
-                <span>{Math.round(((stage) / STAGES.length) * 100)}%</span>
+                <span>Running Pipeline...</span>
+                <span>{Math.round((Math.max(0, currentIndex) / (STAGES.length - 1)) * 100)}%</span>
               </div>
               <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
                 <motion.div 
                   className="h-full bg-primary"
                   initial={{ width: 0 }}
-                  animate={{ width: `${((stage + 1) / STAGES.length) * 100}%` }}
+                  animate={{ width: `${(Math.max(0, currentIndex) / (STAGES.length - 1)) * 100}%` }}
                   transition={{ duration: 0.4 }}
                 />
               </div>
               <div className="space-y-2 mt-4">
                 <AnimatePresence mode="popLayout">
                   {STAGES.map((s, i) => (
-                    i <= stage && (
+                    i <= currentIndex && s.id !== 'done' && (
                       <motion.div
-                        key={s}
+                        key={s.id}
                         initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: i === stage ? 1 : 0.5, x: 0 }}
+                        animate={{ opacity: i === currentIndex ? 1 : 0.5, x: 0 }}
                         className="flex items-center gap-2 text-sm"
                       >
-                        {i < stage ? (
+                        {i < currentIndex ? (
                           <CheckCircle2 className="w-4 h-4 text-primary" />
                         ) : (
                           <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
                         )}
-                        <span className={i === stage ? "text-foreground font-medium" : "text-muted-foreground"}>
-                          {s}
+                        <span className={i === currentIndex ? "text-foreground font-medium" : "text-muted-foreground"}>
+                          {s.label}
                         </span>
                       </motion.div>
                     )

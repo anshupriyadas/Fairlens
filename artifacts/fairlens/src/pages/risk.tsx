@@ -197,6 +197,32 @@ export default function Risk() {
             </CardContent>
           </Card>
 
+          {/* Bias Driver Reasoning */}
+          {useFairLensStore.getState().pipelineResult?.stages.archaeology?.reasoningChains && (
+            <div className="space-y-4 print:break-inside-avoid" data-testid="bias-driver-reasoning">
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5" /> Bias Driver Reasoning
+              </h3>
+              {useFairLensStore.getState().pipelineResult!.stages.archaeology.reasoningChains.map((chain: any, i: number) => (
+                <Card key={i} className="border-border bg-secondary/10">
+                  <CardContent className="p-4 flex gap-4 items-start">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="font-semibold capitalize text-primary">{chain.feature}</span>
+                        <span className="text-muted-foreground">&rarr; Proxy for &rarr;</span>
+                        <span className="font-semibold capitalize text-accent">{chain.proxyAttribute}</span>
+                        <span className="ml-auto text-xs font-mono bg-background border px-2 py-0.5 rounded">
+                          Proxy Score: {chain.proxyScore.toFixed(2)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{chain.harmNote}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
           {/* Regulatory Flags */}
           <div className="space-y-4 print:break-inside-avoid">
             <h3 className="text-xl font-bold flex items-center gap-2">

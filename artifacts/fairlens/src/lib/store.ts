@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { LoanRecord, BiasMetric, HpsResult, RegulatoryFlag, AnalysisReport, StreamAlert, DriftMode, ViewMode, HpsWeights, DomainType } from "./types";
+import { LoanRecord, BiasMetric, HpsResult, RegulatoryFlag, AnalysisReport, StreamAlert, DriftMode, ViewMode, HpsWeights, DomainType, PipelineResult, DetectedAttribute } from "./types";
 import { computeAllMetrics } from "./biasMetrics";
 import { computeHps, computeRegulatoryFlags, generateReport } from "./hps";
 import { startStream } from "./streamSimulator";
@@ -14,6 +14,10 @@ interface FairLensState {
   report: AnalysisReport | null;
   selectedRecordId: string | null;
   
+  pipelineResult: PipelineResult | null;
+  detectedAttrs: DetectedAttribute[];
+  analysisMode: 'fast' | 'full';
+
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
   
@@ -32,6 +36,11 @@ interface FairLensState {
   setSelectedRecordId: (id: string | null) => void;
   clearState: () => void;
   
+  setPipelineResult: (result: PipelineResult | null) => void;
+  toggleAttribute: (column: string) => void;
+  setDetectedAttrs: (attrs: DetectedAttribute[]) => void;
+  runFullAnalysisOverride: (dataset: LoanRecord[]) => void;
+
   startStream: () => void;
   stopStream: () => void;
   resetStream: () => void;
@@ -51,6 +60,10 @@ export const useFairLensStore = create<FairLensState>()(
       report: null,
       selectedRecordId: null,
       
+      pipelineResult: null,
+      detectedAttrs: [],
+      analysisMode: 'full',
+
       viewMode: "Technical",
       setViewMode: (mode) => set({ viewMode: mode }),
 
@@ -76,8 +89,8 @@ export const useFairLensStore = create<FairLensState>()(
       },
 
       setDataset: (data) => {
-        const { hpsWeights, hpsDomain } = get();
-        const attrs = ["gender", "race", "zipcode"];
+        const { hpsWeights, hpsDomain, detectedProtectedAttrs } = get();
+        const attrs = detectedProtectedAttrs.length > 0 ? detectedProtectedAttrs : ["gender", "race", "zipcode"];
         const metrics = computeAllMetrics(data, attrs);
         const hps = computeHps(metrics, data, hpsWeights, hpsDomain);
         const flags = computeRegulatoryFlags(metrics, hps);
@@ -93,6 +106,21 @@ export const useFairLensStore = create<FairLensState>()(
         });
       },
 
+      setPipelineResult: (result) => set({ pipelineResult: result }),
+      
+      toggleAttribute: (column) => {
+        const { detectedAttrs } = get();
+        const newAttrs = detectedAttrs.map(a => a.column === column ? { ...a, enabled: !a.enabled } : a);
+        set({ detectedAttrs: newAttrs, detectedProtectedAttrs: newAttrs.filter(a => a.enabled).map(a => a.column) });
+      },
+
+      setDetectedAttrs: (attrs) => set({ detectedAttrs: attrs, detectedProtectedAttrs: attrs.filter(a => a.enabled).map(a => a.column) }),
+
+      runFullAnalysisOverride: (dataset) => {
+        set({ analysisMode: 'full' });
+        get().setDataset(dataset);
+      },
+
       setSelectedRecordId: (id) => set({ selectedRecordId: id }),
       
       clearState: () => {
@@ -106,7 +134,9 @@ export const useFairLensStore = create<FairLensState>()(
           report: null,
           selectedRecordId: null,
           streamEvents: [],
-          alerts: []
+          alerts: [],
+          pipelineResult: null,
+          detectedAttrs: []
         });
       },
       
@@ -162,7 +192,10 @@ export const useFairLensStore = create<FairLensState>()(
         selectedRecordId: state.selectedRecordId,
         viewMode: state.viewMode,
         hpsWeights: state.hpsWeights,
-        hpsDomain: state.hpsDomain
+        hpsDomain: state.hpsDomain,
+        pipelineResult: state.pipelineResult,
+        detectedAttrs: state.detectedAttrs,
+        analysisMode: state.analysisMode
       }),
     }
   )

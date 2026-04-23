@@ -80,3 +80,34 @@ export interface AnalysisReport {
   businessImpact: string;
   suggestedFixes: string[];
 }
+
+export interface DetectedAttribute {
+  column: string;
+  type: string;
+  confidence: number;
+  reason: string;
+  enabled: boolean;
+}
+
+export interface PipelineStageResult {
+  skipped?: boolean;
+  reason?: string;
+  durationMs?: number;
+  [key: string]: any;
+}
+
+export interface PipelineResult {
+  ranAt: number;
+  fastPass: boolean;
+  stages: {
+    validate: PipelineStageResult;
+    detect: PipelineStageResult;
+    preScan: PipelineStageResult;
+    disparity?: PipelineStageResult;
+    decision: PipelineStageResult;
+    archaeology?: PipelineStageResult;
+    counterfactual?: PipelineStageResult;
+    hps: PipelineStageResult;
+    regulatory: PipelineStageResult;
+  };
+}

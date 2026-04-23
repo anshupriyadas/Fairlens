@@ -1,0 +1,148 @@
+Refactor the FairLens pipeline based on the following improved decision flow.
+
+Goal: Make the system more intelligent, efficient, and production-ready by avoiding unnecessary computation and improving decision branching.
+
+---
+
+## 🔄 UPDATED END-TO-END FLOW
+
+### 1. INPUT LAYER
+- Accept:
+  - Dataset (CSV / API)
+  - Model OR prediction outputs
+- Validate:
+  - Missing values
+  - Schema consistency
+  - Target variable detection
+
+---
+
+### 2. SMART ATTRIBUTE DETECTION
+- Detect protected attributes using:
+  - Column name heuristics
+  - Semantic embeddings
+- Add:
+  - Confidence score per detected attribute
+- Allow manual override in UI
+
+---
+
+### 3. LIGHTWEIGHT PRE-SCAN (NEW)
+- Run fast heuristic checks BEFORE full metrics:
+  - Distribution imbalance
+  - Label skew per group
+- If no risk detected:
+  → Skip heavy computations
+  → Return “Low Bias Risk (Fast Pass)”
+
+---
+
+### 4. FULL DISPARITY ANALYSIS
+- Only triggered if pre-scan flags risk
+- Compute:
+  - Demographic parity
+  - Equalized odds
+  - Calibration gaps
+- Rank attributes by severity
+
+---
+
+### 5. INTELLIGENT DECISION NODE
+
+IF no significant disparity:
+→ Return:
+   - PASS
+   - Confidence score
+   - Optional lightweight explanation
+
+ELSE:
+→ Continue to deep analysis
+
+---
+
+### 6. DECISION ARCHAEOLOGY (ENHANCED)
+- SHAP + feature interaction effects
+- Add:
+  - Proxy detection scoring
+  - Multi-step reasoning (feature → proxy → real-world harm)
+- Overlay:
+  - Socioeconomic context (mock or real)
+
+Output:
+- Ranked bias drivers
+- Real-world interpretation
+
+---
+
+### 7. COUNTERFACTUAL SANDBOX (SMART MODE)
+- Generate:
+  - Minimal-change counterfactual
+  - Top 3 alternative outcomes
+- Add:
+  - “Most sensitive attribute” suggestion
+  - Batch simulation mode
+
+---
+
+### 8. HARM PROBABILITY SCORE (EXPLAINABLE)
+- Compute:
+  - Disparity score
+  - Proxy severity
+  - Domain criticality
+- Show:
+  - Final score (0–100)
+  - Contribution breakdown (visual)
+
+---
+
+### 9. REGULATORY INTELLIGENCE
+- Map findings to:
+  - EU AI Act
+  - ECOA
+- Add:
+  - Violation explanation
+  - Suggested mitigation steps
+
+---
+
+### 10. OUTPUT LAYER
+
+Generate 3 views:
+
+1. Technical View
+   - Metrics
+   - SHAP plots
+   - Raw outputs
+
+2. Executive View
+   - HPS score
+   - Plain-English summary
+   - Risk level
+
+3. Legal View
+   - Compliance flags
+   - Citations
+   - Exportable PDF
+
+---
+
+## ⚡ KEY IMPROVEMENTS
+
+- Avoid unnecessary heavy computations (pre-scan layer)
+- Add confidence + explainability at every step
+- Make counterfactuals actionable, not just visual
+- Turn HPS into a transparent metric (not black box)
+- Add mitigation guidance (very important for judges)
+
+---
+
+## 🚀 IMPLEMENTATION INSTRUCTION
+
+Update:
+- Backend pipeline logic
+- API flow (conditional execution)
+- Frontend step-based UI
+
+Do NOT rebuild — refactor existing system.
+
+Ensure clean modular functions per stage.

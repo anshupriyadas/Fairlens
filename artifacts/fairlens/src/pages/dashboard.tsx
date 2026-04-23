@@ -3,10 +3,10 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion";
-import { AlertTriangle, TrendingUp, ShieldAlert, FileText, Upload, Grid } from "lucide-react";
+import { AlertTriangle, TrendingUp, ShieldAlert, Grid, Upload, CheckCircle2 } from "lucide-react";
 
 export default function Dashboard() {
-  const { dataset, hpsResult, metrics, flags } = useFairLensStore();
+  const { dataset, hpsResult, metrics, flags, pipelineResult, analysisMode } = useFairLensStore();
 
   if (!dataset || !hpsResult) {
     return (
@@ -48,6 +48,54 @@ export default function Dashboard() {
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-8">
+      {pipelineResult && (
+        <motion.div variants={item} className="mb-8" data-testid="verdict-banner">
+          {pipelineResult.stages.decision.verdict === 'PASS' || pipelineResult.fastPass ? (
+            <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 flex items-start gap-4">
+              <div className="mt-1 bg-primary/20 p-2 rounded-full text-primary">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <div className="flex justify-between items-center mb-1">
+                  <h3 className="font-bold text-primary">PASS — Low Bias Risk</h3>
+                  <span className="text-xs font-mono bg-primary/10 text-primary px-2 py-0.5 rounded">
+                    Confidence: {pipelineResult.stages.decision.confidence?.toFixed(0) || (pipelineResult.fastPass ? 95 : 100)}%
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {pipelineResult.fastPass ? "Fast Pass heuristic triggered. Minimal disparities detected." : pipelineResult.stages.decision.summary}
+                </p>
+                <div className="mt-3 flex gap-4 text-xs font-medium">
+                  <span>Sample: {dataset.length} records</span>
+                  <span>Mode: {analysisMode.toUpperCase()}</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-accent/10 border border-accent/20 rounded-xl p-4 flex items-start gap-4">
+              <div className="mt-1 bg-accent/20 p-2 rounded-full text-accent-foreground">
+                <AlertTriangle className="w-5 h-5 text-accent" />
+              </div>
+              <div className="flex-1">
+                <div className="flex justify-between items-center mb-1">
+                  <h3 className="font-bold text-accent">INVESTIGATE — Significant Disparities</h3>
+                  <span className="text-xs font-mono bg-accent/10 text-accent-foreground px-2 py-0.5 rounded">
+                    Confidence: {pipelineResult.stages.decision.confidence?.toFixed(0) || 100}%
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {pipelineResult.stages.decision.summary}
+                </p>
+                <div className="mt-3 flex gap-4 text-xs font-medium">
+                  <span>Sample: {dataset.length} records</span>
+                  <span>Deciding Metric: DP Diff ({(pipelineResult.stages.decision.decidingMetric * 100).toFixed(1)}%)</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </motion.div>
+      )}
+
       <motion.div variants={item}>
         <h1 className="text-3xl font-bold tracking-tight mb-2">Overview</h1>
         <p className="text-muted-foreground">Executive summary of model bias and compliance risks.</p>
