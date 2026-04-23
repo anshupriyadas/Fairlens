@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "FairLens — Contextual Bias Intelligence"
+version = "1.0.0"
+id = "artifacts/fairlens"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18827
+
+[services.development]
+run = "pnpm --filter @workspace/fairlens run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/fairlens", "run", "build" ]
+publicDir = "artifacts/fairlens/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18827"
+BASE_PATH = "/"

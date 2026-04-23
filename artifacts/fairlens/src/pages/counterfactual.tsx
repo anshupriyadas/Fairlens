@@ -1,0 +1,240 @@
+import { useFairLensStore } from "@/lib/store";
+import { Link } from "wouter";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Upload, ArrowRightLeft, Sparkles, SlidersHorizontal } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { findMinimalFlip, computePredictionProba } from "@/lib/counterfactual";
+import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
+import { LoanRecord } from "@/lib/types";
+import { motion } from "framer-motion";
+
+export default function Counterfactual() {
+  const { dataset, selectedRecordId } = useFairLensStore();
+  const [overrides, setOverrides] = useState<Partial<LoanRecord>>({});
+
+  const selectedRecord = useMemo(() => {
+    if (!dataset || !selectedRecordId) return null;
+    return dataset.find(r => r.id === selectedRecordId) || null;
+  }, [dataset, selectedRecordId]);
+
+  const datasetAvg = useMemo(() => {
+    if (!dataset) return {};
+    return {
+      credit_score: dataset.reduce((acc, r) => acc + r.credit_score, 0) / dataset.length,
+      debt_to_income: dataset.reduce((acc, r) => acc + r.debt_to_income, 0) / dataset.length,
+      prior_default: dataset.reduce((acc, r) => acc + r.prior_default, 0) / dataset.length,
+      income: dataset.reduce((acc, r) => acc + r.income, 0) / dataset.length,
+    };
+  }, [dataset]);
+
+  const suggestion = useMemo(() => {
+    if (!selectedRecord) return null;
+    return findMinimalFlip(selectedRecord, datasetAvg);
+  }, [selectedRecord, datasetAvg]);
+
+  // Reset overrides when record changes
+  useEffect(() => {
+    setOverrides({});
+  }, [selectedRecordId]);
+
+  if (!dataset) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center text-center space-y-6">
+        <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center">
+          <Upload className="w-10 h-10 text-muted-foreground" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold mb-2">No active case</h2>
+          <p className="text-muted-foreground max-w-md">Load a dataset to use the counterfactual sandbox.</p>
+        </div>
+        <Link href="/upload">
+          <Button size="lg" data-testid="btn-go-upload">Ingest Data</Button>
+        </Link>
+      </div>
+    );
+  }
+
+  if (!selectedRecord) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center text-center space-y-6">
+        <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center">
+          <SlidersHorizontal className="w-10 h-10 text-muted-foreground" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold mb-2">No record selected</h2>
+          <p className="text-muted-foreground max-w-md">Select a record in Archaeology to start testing counterfactuals.</p>
+        </div>
+        <Link href="/archaeology">
+          <Button size="lg">Go to Archaeology</Button>
+        </Link>
+      </div>
+    );
+  }
+
+  const currentFeatures = { ...selectedRecord, ...overrides };
+  const newProba = computePredictionProba(currentFeatures);
+  const newPrediction = newProba > 0.5 ? "Approved" : "Rejected";
+  const flipped = newPrediction !== selectedRecord.prediction;
+
+  const applySuggestion = () => {
+    if (suggestion) {
+      setOverrides({ ...overrides, [suggestion.feature]: suggestion.to });
+    }
+  };
+
+  return (
+    <div className="space-y-8 pb-12 h-full flex flex-col">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight mb-2">Counterfactual Sandbox</h1>
+        <p className="text-muted-foreground">Test feature perturbations to see what minimal changes flip the model's decision.</p>
+      </div>
+
+      {suggestion && (
+        <Card className="bg-primary/5 border-primary/20 shadow-none">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-primary/20 p-2 rounded-full text-primary">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">Minimal Flip Suggestion</p>
+                <p className="text-sm text-muted-foreground">
+                  Changing <span className="font-semibold text-foreground capitalize">{String(suggestion.feature).replace('_', ' ')}</span> from {String(suggestion.from)} to <span className="font-semibold text-foreground">{String(suggestion.to)}</span> flips the prediction.
+                </p>
+              </div>
+            </div>
+            <Button size="sm" onClick={applySuggestion} data-testid="btn-apply-suggestion">Apply Change</Button>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 min-h-0">
+        {/* Editor */}
+        <Card className="flex flex-col h-full overflow-hidden">
+          <CardHeader className="bg-secondary/20 pb-4 shrink-0 border-b border-border">
+            <CardTitle>Feature Perturbation</CardTitle>
+            <CardDescription>Drag sliders to test "what if" scenarios.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1 overflow-y-auto p-6 space-y-8">
+            <div className="space-y-4">
+              <Label className="text-base text-muted-foreground font-normal uppercase tracking-wider">Protected Attributes</Label>
+              
+              <div className="space-y-3">
+                <div className="flex justify-between items-center mb-1">
+                  <Label>Gender</Label>
+                  <span className="text-sm font-mono text-muted-foreground">{currentFeatures.gender}</span>
+                </div>
+                <div className="flex gap-2">
+                  {["Male", "Female", "Non-binary"].map(g => (
+                    <Button 
+                      key={g}
+                      variant={currentFeatures.gender === g ? "default" : "outline"}
+                      className="flex-1"
+                      onClick={() => setOverrides({...overrides, gender: g as any})}
+                    >
+                      {g}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-4">
+                <div className="flex justify-between items-center mb-1">
+                  <Label>Zipcode (Proxy)</Label>
+                  <span className="text-sm font-mono text-muted-foreground">{currentFeatures.zipcode}</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {["94601", "94103", "94110", "94621", "94122", "94132"].map(z => (
+                    <Button 
+                      key={z}
+                      variant={currentFeatures.zipcode === z ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setOverrides({...overrides, zipcode: z})}
+                    >
+                      {z}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="w-full h-px bg-border my-6" />
+
+            <div className="space-y-8">
+              <Label className="text-base text-muted-foreground font-normal uppercase tracking-wider">Financial Indicators</Label>
+              
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <Label>Credit Score</Label>
+                  <span className="text-sm font-mono font-medium bg-secondary px-2 py-1 rounded">{currentFeatures.credit_score}</span>
+                </div>
+                <Slider 
+                  min={300} max={850} step={1}
+                  value={[currentFeatures.credit_score]}
+                  onValueChange={(v) => setOverrides({...overrides, credit_score: v[0]})}
+                />
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <Label>Debt-to-Income Ratio</Label>
+                  <span className="text-sm font-mono font-medium bg-secondary px-2 py-1 rounded">{currentFeatures.debt_to_income.toFixed(2)}</span>
+                </div>
+                <Slider 
+                  min={0} max={1} step={0.01}
+                  value={[currentFeatures.debt_to_income]}
+                  onValueChange={(v) => setOverrides({...overrides, debt_to_income: v[0]})}
+                />
+              </div>
+            </div>
+
+            <div className="pt-4 flex justify-end">
+              <Button variant="ghost" onClick={() => setOverrides({})}>Reset to Original</Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Prediction Compare */}
+        <div className="flex flex-col gap-4">
+          <Card className="bg-secondary/10 border-dashed border-2">
+            <CardContent className="p-8 text-center">
+              <div className="text-sm text-muted-foreground uppercase tracking-widest font-medium mb-4">Original Prediction</div>
+              <div className={`text-4xl font-bold mb-2 ${selectedRecord.prediction === 'Approved' ? 'text-primary' : 'text-destructive'}`}>
+                {selectedRecord.prediction}
+              </div>
+              <div className="font-mono text-muted-foreground">Prob: {(selectedRecord.prediction_proba * 100).toFixed(1)}%</div>
+            </CardContent>
+          </Card>
+
+          <div className="flex justify-center text-muted-foreground">
+            <ArrowRightLeft className="w-6 h-6 rotate-90 lg:rotate-0" />
+          </div>
+
+          <Card className={`border-2 shadow-lg transition-colors duration-500 ${flipped ? 'border-primary bg-primary/5' : 'border-border'}`}>
+            <CardContent className="p-8 text-center relative overflow-hidden">
+              {flipped && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="absolute inset-0 bg-primary/10 flex items-center justify-center pointer-events-none"
+                >
+                  <div className="text-9xl font-bold opacity-10 -rotate-12">FLIPPED</div>
+                </motion.div>
+              )}
+              
+              <div className="relative z-10">
+                <div className="text-sm text-muted-foreground uppercase tracking-widest font-medium mb-4">Counterfactual Prediction</div>
+                <div className={`text-5xl font-bold mb-2 transition-colors ${newPrediction === 'Approved' ? 'text-primary' : 'text-destructive'}`}>
+                  {newPrediction}
+                </div>
+                <div className="font-mono font-medium">Prob: {(newProba * 100).toFixed(1)}%</div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}

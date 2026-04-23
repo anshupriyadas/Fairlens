@@ -1,0 +1,265 @@
+You are a senior full-stack AI architect and product engineer.
+
+Build a production-ready MVP called “FairLens — Contextual Bias Intelligence Platform”.
+
+The system detects, explains, and simulates bias in ML models using causality, counterfactuals, and real-world socioeconomic context.
+
+---
+
+## 🧠 CORE GOAL
+
+Go beyond statistical bias detection.
+
+The system must:
+1. Explain WHY a decision was made (feature-level causality)
+2. Show HOW bias manifests when attributes change (counterfactuals)
+3. Quantify REAL-WORLD HARM (Harm Probability Score)
+4. Communicate results in plain English for non-technical users
+
+---
+
+## ⚙️ TECH STACK
+
+Frontend:
+- React + TypeScript
+- Tailwind CSS
+- shadcn/ui components
+- Zustand (state management)
+- Recharts (visualizations)
+
+Backend:
+- Python + FastAPI
+- PostgreSQL (structured storage)
+- Redis (caching + async jobs)
+- Celery (background tasks)
+
+AI/ML:
+- SHAP (feature attribution)
+- DiCE-ML (counterfactual generation)
+- scikit-learn / XGBoost compatibility
+- sentence-transformers (for semantic column detection)
+
+External APIs:
+- Census / socioeconomic datasets (mock initially with JSON)
+- LLM (OpenAI or Claude) for explanation generation
+
+Infra:
+- Dockerized services
+- Simple multi-tenant architecture (org_id separation)
+
+---
+
+## 🧩 CORE FEATURES
+
+### 1. DATA INGESTION PIPELINE
+- Upload:
+  - CSV dataset
+  - Trained model (pickle/joblib) OR prediction CSV
+- Auto-detect:
+  - Protected attributes (gender, race, age, postcode)
+  - Use:
+    - column name heuristics
+    - semantic similarity via embeddings
+
+Output:
+- Cleaned dataset
+- Identified protected features
+- Stored metadata
+
+---
+
+### 2. BIAS METRICS ENGINE
+
+Compute:
+- Demographic Parity Difference
+- Equalized Odds Difference
+- Calibration Gap
+
+Breakdown:
+- Per protected attribute
+- Per subgroup
+
+Return JSON like:
+{
+  "gender": {
+    "demographic_parity": 0.23,
+    "equalized_odds": 0.17
+  }
+}
+
+---
+
+### 3. DECISION ARCHAEOLOGY PANEL
+
+For each prediction:
+- Use SHAP to compute feature contributions
+- Rank top contributing features
+
+Then:
+- Map features to socioeconomic context:
+  Example:
+    "zipcode" → correlate with race/income data
+
+Mock context DB:
+{
+  "zipcode": {
+    "race_correlation": 0.84,
+    "income_level": "low"
+  }
+}
+
+Output:
+- Feature importance + real-world implication
+- Explanation:
+  “Zipcode acts as a proxy for race in this region”
+
+---
+
+### 4. COUNTERFACTUAL SANDBOX
+
+UI:
+- Select a record
+- Editable fields (dropdowns/sliders)
+- Flip protected attributes
+
+Backend:
+- Use DiCE-ML to generate counterfactuals
+
+Output:
+- Before vs After prediction
+- Minimal feature changes required
+
+Example:
+{
+  "original": {"gender": "Male", "prediction": "Rejected"},
+  "counterfactual": {"gender": "Female", "prediction": "Approved"}
+}
+
+---
+
+### 5. HARM PROBABILITY SCORE (HPS)
+
+Create formula combining:
+- Statistical disparity (0–1)
+- Feature proxy severity (0–1)
+- Domain weight (loan > hiring > recommendations)
+
+Example formula:
+HPS = (0.4 * disparity) + (0.3 * proxy_strength) + (0.3 * domain_weight)
+
+Normalize to 0–100.
+
+Output:
+{
+  "score": 78,
+  "risk_level": "High",
+  "reason": "Strong proxy bias in high-impact domain"
+}
+
+---
+
+### 6. REGULATORY MAPPING
+
+Map findings to:
+- EU AI Act (mock rules)
+- ECOA (loan discrimination)
+
+Example:
+IF gender bias in loan model:
+→ Flag ECOA violation
+
+---
+
+### 7. PLAIN-ENGLISH REPORT GENERATOR
+
+Use LLM to generate:
+
+- Executive summary
+- Key risks
+- Business impact
+- Suggested fixes
+
+Tone:
+- Non-technical
+- Compliance-friendly
+
+---
+
+## 🖥️ UI STRUCTURE
+
+### Dashboard
+- Upload model/data
+- Show bias metrics overview
+
+### Archaeology View
+- Feature importance chart
+- Context overlay insights
+
+### Counterfactual Sandbox
+- Editable record panel
+- Before/After cards
+
+### Risk Report Page
+- HPS score (big visual)
+- Explanation
+- Compliance flags
+
+---
+
+## 🔄 API DESIGN
+
+POST /upload
+POST /analyze
+GET /metrics
+GET /shap/{id}
+POST /counterfactual
+GET /hps
+GET /report
+
+---
+
+## 📦 DELIVERABLES
+
+Generate:
+1. Full backend (FastAPI)
+2. Frontend (React dashboard)
+3. Sample dataset + model
+4. Mock socioeconomic dataset
+5. SHAP + DiCE integration
+6. End-to-end working flow
+
+---
+
+## 🚀 PRIORITY
+
+Focus on:
+- Working pipeline over perfection
+- Clear visual outputs
+- Explainability > accuracy
+
+---
+
+## 💡 BONUS (if time permits)
+
+- PDF export
+- Multi-user org system
+- Role-based access
+- Real-time updates via WebSockets
+
+---
+
+## 🧪 TEST SCENARIO
+
+Use:
+- Loan approval dataset
+
+Demonstrate:
+- Gender bias
+- Zipcode proxy bias
+- Counterfactual flip changing decision
+
+---
+
+Build this as a cohesive product, not isolated scripts.
+
+Code should be modular, readable, and runnable locally with Docker.
