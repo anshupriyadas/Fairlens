@@ -1,4 +1,4 @@
-import { LoanRecord, HpsResult, BiasMetric, RegulatoryFlag, AnalysisReport } from "./types";
+import { LoanRecord, HpsResult, BiasMetric, RegulatoryFlag, AnalysisReport, HpsWeights, DomainType } from "./types";
 import { socioContextDB } from "./socioContext";
 
 export function computeHps(metrics: BiasMetric[], dataset: LoanRecord[], weights?: HpsWeights, domain?: DomainType): HpsResult {
@@ -35,7 +35,7 @@ export function computeHps(metrics: BiasMetric[], dataset: LoanRecord[], weights
     breakdown: {
       disparity: maxDisparity,
       proxyStrength,
-      domainWeight
+      domainWeight: domainWeightVal / 1.5
     }
   };
 }
