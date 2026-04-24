@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { runPipeline } from "@/lib/pipeline";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 const STAGES = [
   { id: "validate", label: "Validating Input" },
@@ -35,26 +36,40 @@ export default function Upload() {
   const handleLoadSample = async () => {
     setIsProcessing(true);
     setPipelineFinished(false);
-    const data = generateSampleData(400);
-    setLocalDataset(data);
-    
-    const result = await runPipeline(data, {
-      onProgress: (stage) => setCurrentStageId(stage)
-    });
-    
-    setPipelineResult(result);
-    if (result.stages.detect.attributes) {
-      setDetectedAttrs(result.stages.detect.attributes);
-    }
-    
-    if (result.fastPass) {
-      setPipelineFinished(true);
-    } else {
-      setDataset(data);
-      setShowCompleteOverlay(true);
-      setTimeout(() => {
-        setLocation("/");
-      }, 1000);
+    try {
+      const data = generateSampleData(400);
+      if (!Array.isArray(data) || data.length === 0) {
+        throw new Error("Sample dataset failed to generate.");
+      }
+      setLocalDataset(data);
+
+      const result = await runPipeline(data, {
+        onProgress: (stage) => setCurrentStageId(stage)
+      });
+
+      setPipelineResult(result);
+      if (result.stages.detect.attributes) {
+        setDetectedAttrs(result.stages.detect.attributes);
+      }
+
+      if (result.fastPass) {
+        setPipelineFinished(true);
+      } else {
+        setDataset(data);
+        setShowCompleteOverlay(true);
+        setTimeout(() => {
+          setLocation("/");
+        }, 1000);
+      }
+    } catch (err: any) {
+      console.error("Pipeline failed:", err);
+      toast.error("Analysis failed", {
+        description: err?.message || "An unexpected error occurred while running the pipeline."
+      });
+      setIsProcessing(false);
+      setPipelineFinished(false);
+      setShowCompleteOverlay(false);
+      setCurrentStageId("");
     }
   };
 

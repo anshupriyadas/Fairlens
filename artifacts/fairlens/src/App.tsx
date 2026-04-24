@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Layout } from "@/components/layout";
+import { ErrorBoundary } from "@/components/error-boundary";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import Upload from "@/pages/upload";
@@ -21,6 +22,7 @@ const queryClient = new QueryClient();
 function Router() {
   return (
     <Layout>
+      <ErrorBoundary>
       <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/monitoring" component={Monitoring} />
@@ -34,6 +36,7 @@ function Router() {
         <Route path="/risk" component={Risk} />
         <Route component={NotFound} />
       </Switch>
+      </ErrorBoundary>
     </Layout>
   );
 }

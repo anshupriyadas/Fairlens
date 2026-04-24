@@ -1,9 +1,20 @@
 import { jsPDF } from "jspdf";
 
-export function exportAuditReport(state: any) {
-  const { dataset, hpsResult, metrics, flags, report } = state;
-  if (!dataset || !hpsResult || !report) return;
+export function exportAuditReport(state: any): { ok: boolean; error?: string } {
+  try {
+    const { dataset, hpsResult, metrics, flags, report } = state || {};
+    if (!dataset || !hpsResult || !report) {
+      return { ok: false, error: "No active case — load a dataset first." };
+    }
 
+    return runExport({ dataset, hpsResult, metrics: metrics || [], flags: flags || [], report });
+  } catch (err: any) {
+    console.error("PDF export failed:", err);
+    return { ok: false, error: err?.message || "Failed to generate PDF" };
+  }
+}
+
+function runExport({ dataset, hpsResult, metrics, flags, report }: any): { ok: boolean; error?: string } {
   const doc = new jsPDF();
   const timestamp = new Date().toLocaleString();
   const caseName = "Loan Approval Model v1.2";
@@ -119,4 +130,5 @@ export function exportAuditReport(state: any) {
   });
 
   doc.save(`fairlens-audit-${Date.now()}.pdf`);
+  return { ok: true };
 }

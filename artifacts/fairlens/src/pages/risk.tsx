@@ -47,12 +47,11 @@ export default function Risk() {
   }
 
   const handleDownloadPDF = () => {
-    try {
-      exportAuditReport(state);
+    const res = exportAuditReport(state);
+    if (res.ok) {
       toast.success("Report downloaded");
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to generate PDF");
+    } else {
+      toast.error("Failed to generate PDF", { description: res.error });
     }
   };
 

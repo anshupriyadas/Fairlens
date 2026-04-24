@@ -45,15 +45,45 @@ export function computeCalibrationGap(rates: Record<string, { approvalRate: numb
   return computeDemographicParityDifference(rates) * 0.5;
 }
 
+const metricsCache = new WeakMap<LoanRecord[], Map<string, BiasMetric[]>>();
+
 export function computeAllMetrics(dataset: LoanRecord[], protectedAttrs: string[]): BiasMetric[] {
-  return protectedAttrs.map(attr => {
-    const rates = computeSubgroupRates(dataset, attr as keyof LoanRecord);
-    return {
-      attribute: attr,
-      demographicParityDifference: computeDemographicParityDifference(rates),
-      equalizedOddsDifference: computeEqualizedOddsDifference(rates),
-      calibrationGap: computeCalibrationGap(rates),
-      subgroupRates: Object.fromEntries(Object.entries(rates).map(([k, v]) => [k, { approvalRate: v.approvalRate, count: v.count }]))
-    };
+  if (!Array.isArray(dataset) || dataset.length === 0 || !Array.isArray(protectedAttrs) || protectedAttrs.length === 0) {
+    return [];
+  }
+
+  const cacheKey = [...protectedAttrs].sort().join("|");
+  let perDataset = metricsCache.get(dataset);
+  if (perDataset) {
+    const cached = perDataset.get(cacheKey);
+    if (cached) return cached;
+  } else {
+    perDataset = new Map();
+    metricsCache.set(dataset, perDataset);
+  }
+
+  const result = protectedAttrs.map(attr => {
+    try {
+      const rates = computeSubgroupRates(dataset, attr as keyof LoanRecord);
+      return {
+        attribute: attr,
+        demographicParityDifference: computeDemographicParityDifference(rates),
+        equalizedOddsDifference: computeEqualizedOddsDifference(rates),
+        calibrationGap: computeCalibrationGap(rates),
+        subgroupRates: Object.fromEntries(Object.entries(rates).map(([k, v]) => [k, { approvalRate: v.approvalRate, count: v.count }]))
+      };
+    } catch (err) {
+      console.warn(`Metric computation failed for attribute "${attr}":`, err);
+      return {
+        attribute: attr,
+        demographicParityDifference: 0,
+        equalizedOddsDifference: 0,
+        calibrationGap: 0,
+        subgroupRates: {}
+      };
+    }
   });
+
+  perDataset.set(cacheKey, result);
+  return result;
 }

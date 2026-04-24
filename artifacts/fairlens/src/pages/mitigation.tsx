@@ -60,11 +60,16 @@ export default function MitigationStudio() {
   const handleSimulate = () => {
     if (!selectedStrategy) return;
     setIsSimulating(true);
-    // Simulate a small delay for UX
     setTimeout(() => {
-      const res = simulateMitigation(dataset, metrics, selectedStrategy);
-      setSimulationResult(res);
-      setIsSimulating(false);
+      try {
+        const res = simulateMitigation(dataset, metrics, selectedStrategy);
+        setSimulationResult(res);
+      } catch (err: any) {
+        console.error("Mitigation simulation failed:", err);
+        setSimulationResult(null);
+      } finally {
+        setIsSimulating(false);
+      }
     }, 600);
   };
 
