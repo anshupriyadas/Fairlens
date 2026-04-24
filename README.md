@@ -79,7 +79,7 @@ Perfect for ensuring fairness in:
    pnpm --filter @workspace/fairlens run dev
    ```
 
-Access the application at `http://localhost:5173`
+Access the application at `https://fairlens--anshuhelloworld.replit.app`
 
 ### Core Commands
 
