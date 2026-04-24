@@ -4,6 +4,20 @@ import { LoanRecord, BiasMetric, HpsResult, RegulatoryFlag, AnalysisReport, Stre
 import { computeAllMetrics } from "./biasMetrics";
 import { computeHps, computeRegulatoryFlags, generateReport } from "./hps";
 import { startStream } from "./streamSimulator";
+import type { MitigationResult, MitigationStrategy } from "./mitigation";
+
+interface AppliedMitigation {
+  strategy: MitigationStrategy;
+  strategyLabel: string;
+  appliedAt: number;
+  summary: string;
+  costEstimate: string;
+  sideEffects: string[];
+  originalMetrics: BiasMetric[];
+  originalHps: HpsResult | null;
+  originalFlags: RegulatoryFlag[];
+  originalReport: AnalysisReport | null;
+}
 
 interface FairLensState {
   dataset: LoanRecord[] | null;
@@ -31,6 +45,10 @@ interface FairLensState {
   hpsWeights: HpsWeights;
   hpsDomain: DomainType;
   setHpsConfig: (weights: HpsWeights, domain: DomainType) => void;
+
+  appliedMitigation: AppliedMitigation | null;
+  applyMitigation: (strategy: MitigationStrategy, strategyLabel: string, result: MitigationResult) => void;
+  resetMitigation: () => void;
 
   setDataset: (data: LoanRecord[]) => void;
   setSelectedRecordId: (id: string | null) => void;
@@ -76,7 +94,60 @@ export const useFairLensStore = create<FairLensState>()(
       
       hpsWeights: { disparity: 0.4, proxyStrength: 0.3, domainWeight: 0.3 },
       hpsDomain: "Loan",
-      
+
+      appliedMitigation: null,
+
+      applyMitigation: (strategy, strategyLabel, result) => {
+        const { metrics, hpsResult, flags, report, dataset, hpsWeights, hpsDomain, appliedMitigation } = get();
+        if (!dataset) return;
+
+        const snapshot = appliedMitigation
+          ? {
+              originalMetrics: appliedMitigation.originalMetrics,
+              originalHps: appliedMitigation.originalHps,
+              originalFlags: appliedMitigation.originalFlags,
+              originalReport: appliedMitigation.originalReport,
+            }
+          : {
+              originalMetrics: metrics,
+              originalHps: hpsResult,
+              originalFlags: flags,
+              originalReport: report,
+            };
+
+        const newHps = computeHps(result.newMetrics, dataset, hpsWeights, hpsDomain);
+        const newFlags = computeRegulatoryFlags(result.newMetrics, newHps);
+        const newReport = generateReport(result.newMetrics, newHps, newFlags);
+
+        set({
+          metrics: result.newMetrics,
+          hpsResult: newHps,
+          flags: newFlags,
+          report: newReport,
+          appliedMitigation: {
+            strategy,
+            strategyLabel,
+            appliedAt: Date.now(),
+            summary: result.summary,
+            costEstimate: result.costEstimate,
+            sideEffects: result.sideEffects,
+            ...snapshot,
+          },
+        });
+      },
+
+      resetMitigation: () => {
+        const { appliedMitigation } = get();
+        if (!appliedMitigation) return;
+        set({
+          metrics: appliedMitigation.originalMetrics,
+          hpsResult: appliedMitigation.originalHps,
+          flags: appliedMitigation.originalFlags,
+          report: appliedMitigation.originalReport,
+          appliedMitigation: null,
+        });
+      },
+
       setHpsConfig: (weights, domain) => {
         set({ hpsWeights: weights, hpsDomain: domain });
         const { dataset, metrics } = get();
@@ -136,7 +207,8 @@ export const useFairLensStore = create<FairLensState>()(
           streamEvents: [],
           alerts: [],
           pipelineResult: null,
-          detectedAttrs: []
+          detectedAttrs: [],
+          appliedMitigation: null,
         });
       },
       
@@ -195,7 +267,8 @@ export const useFairLensStore = create<FairLensState>()(
         hpsDomain: state.hpsDomain,
         pipelineResult: state.pipelineResult,
         detectedAttrs: state.detectedAttrs,
-        analysisMode: state.analysisMode
+        analysisMode: state.analysisMode,
+        appliedMitigation: state.appliedMitigation,
       }),
     }
   )

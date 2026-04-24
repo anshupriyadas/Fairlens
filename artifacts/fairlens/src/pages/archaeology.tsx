@@ -31,8 +31,8 @@ export default function Archaeology() {
     return dataset.find(r => r.id === selectedRecordId) || null;
   }, [dataset, selectedRecordId]);
 
-  const datasetAvg = useMemo(() => {
-    if (!dataset) return {};
+  const datasetAvg = useMemo<Record<string, number>>(() => {
+    if (!dataset || dataset.length === 0) return {} as Record<string, number>;
     return {
       credit_score: dataset.reduce((acc, r) => acc + r.credit_score, 0) / dataset.length,
       debt_to_income: dataset.reduce((acc, r) => acc + r.debt_to_income, 0) / dataset.length,

@@ -1,14 +1,15 @@
 import { Link, useLocation } from "wouter";
 import { useFairLensStore } from "@/lib/store";
 import { useTheme } from "./theme-provider";
-import { Moon, Sun, LayoutDashboard, UploadCloud, BarChart3, Search, SlidersHorizontal, AlertTriangle, Activity, Wand2 } from "lucide-react";
+import { Moon, Sun, LayoutDashboard, UploadCloud, BarChart3, Search, SlidersHorizontal, AlertTriangle, Activity, Wand2, RotateCcw, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ViewMode } from "@/lib/types";
+import { toast } from "sonner";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
-  const { dataset, alerts, viewMode, setViewMode } = useFairLensStore();
+  const { dataset, alerts, viewMode, setViewMode, appliedMitigation, resetMitigation } = useFairLensStore();
   const { theme, setTheme } = useTheme();
 
   const navItems = [
@@ -103,6 +104,36 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </Button>
           </div>
         </header>
+
+        {/* Mitigation banner */}
+        {appliedMitigation && (
+          <div
+            className="border-b border-primary/30 bg-primary/10 px-6 py-2 flex items-center justify-between gap-4 shrink-0"
+            data-testid="banner-mitigation-applied"
+          >
+            <div className="flex items-center gap-2 text-sm">
+              <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+              <span className="font-semibold text-primary">Simulated:</span>
+              <span className="text-foreground">{appliedMitigation.strategyLabel}</span>
+              <span className="text-muted-foreground hidden md:inline">
+                — all metrics, HPS, and risk views show post-mitigation values
+              </span>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-2 h-7"
+              onClick={() => {
+                resetMitigation();
+                toast.success("Restored original metrics");
+              }}
+              data-testid="btn-reset-mitigation-banner"
+            >
+              <RotateCcw className="w-3 h-3" />
+              Reset
+            </Button>
+          </div>
+        )}
 
         {/* Page Content */}
         <main className="flex-1 overflow-auto bg-background p-8">

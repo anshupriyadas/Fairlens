@@ -24,8 +24,8 @@ export default function Counterfactual() {
     return dataset.find(r => r.id === selectedRecordId) || null;
   }, [dataset, selectedRecordId]);
 
-  const datasetAvg = useMemo(() => {
-    if (!dataset) return {};
+  const datasetAvg = useMemo<Record<string, number>>(() => {
+    if (!dataset || dataset.length === 0) return {} as Record<string, number>;
     return {
       credit_score: dataset.reduce((acc, r) => acc + r.credit_score, 0) / dataset.length,
       debt_to_income: dataset.reduce((acc, r) => acc + r.debt_to_income, 0) / dataset.length,
@@ -293,7 +293,7 @@ export default function Counterfactual() {
                             prior_default: dataset.reduce((acc, r) => acc + r.prior_default, 0) / dataset.length,
                             income: dataset.reduce((acc, r) => acc + r.income, 0) / dataset.length,
                           };
-                          const alternatives = [];
+                          const alternatives: Array<{ label: string; changes: Partial<LoanRecord>; outcome: string; distance: number }> = [];
                           if (selectedRecord.prediction === "Rejected") {
                             alternatives.push({ label: "Option A", changes: { credit_score: Math.min(850, selectedRecord.credit_score + 50) }, outcome: "Approved", distance: 50 });
                             alternatives.push({ label: "Option B", changes: { debt_to_income: Math.max(0, selectedRecord.debt_to_income - 0.2) }, outcome: "Approved", distance: 0.2 });

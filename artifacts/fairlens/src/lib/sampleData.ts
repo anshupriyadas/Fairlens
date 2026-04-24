@@ -1,4 +1,4 @@
-import { LoanRecord } from "./types";
+import { LoanRecord, Prediction } from "./types";
 import { socioContextDB } from "./socioContext";
 
 function randomChoice<T>(arr: T[]): T {

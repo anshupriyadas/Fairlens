@@ -3,7 +3,8 @@ import { useFairLensStore } from "@/lib/store";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Wand2, Upload, ArrowRight, Info, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Wand2, Upload, ArrowRight, Info, CheckCircle2, AlertTriangle, RotateCcw } from "lucide-react";
+import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { simulateMitigation, MitigationStrategy, MitigationResult } from "@/lib/mitigation";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -35,7 +36,7 @@ const STRATEGIES: { id: MitigationStrategy; title: string; description: string }
 ];
 
 export default function MitigationStudio() {
-  const { dataset, metrics, hpsResult, pipelineResult } = useFairLensStore();
+  const { dataset, metrics, hpsResult, pipelineResult, appliedMitigation, applyMitigation, resetMitigation } = useFairLensStore();
   const [selectedStrategy, setSelectedStrategy] = useState<MitigationStrategy | null>(null);
   const [simulationResult, setSimulationResult] = useState<MitigationResult | null>(null);
   const [isSimulating, setIsSimulating] = useState(false);
@@ -229,19 +230,54 @@ export default function MitigationStudio() {
                   </CardContent>
                 </Card>
 
-                <div className="flex justify-end gap-4">
+                <div className="flex justify-end gap-3 flex-wrap">
+                  {appliedMitigation && (
+                    <Button
+                      variant="outline"
+                      className="gap-2"
+                      onClick={() => {
+                        resetMitigation();
+                        toast.success("Restored original metrics", {
+                          description: "All views now show pre-mitigation values."
+                        });
+                      }}
+                      data-testid="btn-reset-mitigation"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      Reset to Original
+                    </Button>
+                  )}
+                  <Button
+                    className="gap-2"
+                    onClick={() => {
+                      const label = STRATEGIES.find(s => s.id === selectedStrategy)?.title || String(selectedStrategy);
+                      try {
+                        applyMitigation(selectedStrategy!, label, simulationResult);
+                        toast.success(`Applied: ${label}`, {
+                          description: "Dashboard, Metrics & Risk Report now reflect simulated values."
+                        });
+                      } catch (err: any) {
+                        console.error("Apply mitigation failed:", err);
+                        toast.error("Failed to apply mitigation", { description: err?.message });
+                      }
+                    }}
+                    data-testid="btn-apply-mitigation"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    {appliedMitigation ? "Re-apply with this Strategy" : "Apply Across All Views"}
+                  </Button>
                   <TooltipProvider>
                     <UITooltip>
                       <TooltipTrigger asChild>
                         <div className="inline-block">
-                          <Button disabled variant="outline" className="gap-2">
-                            Apply to Production
-                            <CheckCircle2 className="w-4 h-4" />
+                          <Button disabled variant="ghost" size="sm" className="gap-2 text-muted-foreground">
+                            <Info className="w-3 h-3" />
+                            What does Apply do?
                           </Button>
                         </div>
                       </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Demo only — would dispatch to MLOps pipeline</p>
+                      <TooltipContent className="max-w-xs">
+                        <p>Replaces live metrics, HPS, flags & report across all pages with simulated post-mitigation values. Original snapshot is kept — click Reset to revert.</p>
                       </TooltipContent>
                     </UITooltip>
                   </TooltipProvider>
