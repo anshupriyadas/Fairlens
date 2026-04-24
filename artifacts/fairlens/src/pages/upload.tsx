@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useFairLensStore } from "@/lib/store";
 import { generateSampleData } from "@/lib/sampleData";
 import { useLocation } from "wouter";
@@ -10,6 +10,8 @@ import { runPipeline } from "@/lib/pipeline";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { parseCsv, readFileAsText, CsvParseError } from "@/lib/csvParser";
+import { LoanRecord } from "@/lib/types";
 
 const STAGES = [
   { id: "validate", label: "Validating Input" },
@@ -32,6 +34,26 @@ export default function Upload() {
   const [pipelineFinished, setPipelineFinished] = useState(false);
   const [localDataset, setLocalDataset] = useState<any[]>([]);
   const [showCompleteOverlay, setShowCompleteOverlay] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const runDatasetThroughPipeline = async (data: LoanRecord[]) => {
+    setLocalDataset(data);
+    const result = await runPipeline(data, {
+      onProgress: (stage) => setCurrentStageId(stage),
+    });
+    setPipelineResult(result);
+    if (result.stages.detect.attributes) {
+      setDetectedAttrs(result.stages.detect.attributes);
+    }
+    if (result.fastPass) {
+      setPipelineFinished(true);
+    } else {
+      setDataset(data);
+      setShowCompleteOverlay(true);
+      setTimeout(() => setLocation("/"), 1000);
+    }
+  };
 
   const handleLoadSample = async () => {
     setIsProcessing(true);
@@ -41,26 +63,7 @@ export default function Upload() {
       if (!Array.isArray(data) || data.length === 0) {
         throw new Error("Sample dataset failed to generate.");
       }
-      setLocalDataset(data);
-
-      const result = await runPipeline(data, {
-        onProgress: (stage) => setCurrentStageId(stage)
-      });
-
-      setPipelineResult(result);
-      if (result.stages.detect.attributes) {
-        setDetectedAttrs(result.stages.detect.attributes);
-      }
-
-      if (result.fastPass) {
-        setPipelineFinished(true);
-      } else {
-        setDataset(data);
-        setShowCompleteOverlay(true);
-        setTimeout(() => {
-          setLocation("/");
-        }, 1000);
-      }
+      await runDatasetThroughPipeline(data);
     } catch (err: any) {
       console.error("Pipeline failed:", err);
       toast.error("Analysis failed", {
@@ -71,6 +74,82 @@ export default function Upload() {
       setShowCompleteOverlay(false);
       setCurrentStageId("");
     }
+  };
+
+  const handleFile = async (file: File) => {
+    if (!file) return;
+
+    const ext = file.name.toLowerCase().split(".").pop();
+    if (ext !== "csv" && file.type !== "text/csv" && file.type !== "application/vnd.ms-excel") {
+      toast.error("Unsupported file type", {
+        description: `Please upload a .csv file. Got: ${file.name}`,
+      });
+      return;
+    }
+
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("File too large", {
+        description: "Maximum supported size is 25 MB. Please sample your dataset first.",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    setPipelineFinished(false);
+    setCurrentStageId("");
+
+    try {
+      const text = await readFileAsText(file);
+      const { records, warnings } = parseCsv(text);
+
+      toast.success(`Parsed ${records.length} rows from ${file.name}`, {
+        description: warnings.length > 0 ? warnings[0] : `${records.length} records ready for analysis.`,
+      });
+      warnings.slice(1).forEach(w => toast.warning(w));
+
+      await runDatasetThroughPipeline(records);
+    } catch (err: any) {
+      console.error("CSV upload failed:", err);
+      const isParse = err instanceof CsvParseError;
+      toast.error(isParse ? "Could not parse CSV" : "Upload failed", {
+        description: err?.message || "Unexpected error reading the file.",
+      });
+      setIsProcessing(false);
+      setPipelineFinished(false);
+      setShowCompleteOverlay(false);
+      setCurrentStageId("");
+    }
+  };
+
+  const handleBrowse = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFile(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isProcessing) setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (isProcessing) return;
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFile(file);
   };
 
   const handleOverride = () => {
@@ -95,13 +174,42 @@ export default function Upload() {
         <CardContent className="space-y-6 pb-10 px-10">
           {!isProcessing && !pipelineFinished ? (
             <>
-              <div className="border-2 border-dashed border-border rounded-xl p-12 text-center bg-secondary/30 transition-colors hover:bg-secondary/50">
-                <UploadCloud className="w-10 h-10 text-muted-foreground mx-auto mb-4" />
-                <h3 className="font-semibold text-lg mb-1">Drag and drop CSV</h3>
+              <div
+                className={`border-2 border-dashed rounded-xl p-12 text-center transition-colors cursor-pointer ${
+                  isDragging
+                    ? "border-primary bg-primary/10"
+                    : "border-border bg-secondary/30 hover:bg-secondary/50"
+                }`}
+                onDragOver={handleDragOver}
+                onDragEnter={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={handleBrowse}
+                data-testid="dropzone-csv"
+              >
+                <UploadCloud className={`w-10 h-10 mx-auto mb-4 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
+                <h3 className="font-semibold text-lg mb-1">
+                  {isDragging ? "Drop to upload" : "Drag and drop CSV"}
+                </h3>
                 <p className="text-sm text-muted-foreground mb-6">
-                  Must include features, predicted classes, and probabilities.
+                  Must include a <code className="font-mono text-xs bg-secondary px-1 py-0.5 rounded">prediction</code> column. Other fields auto-detected.
                 </p>
-                <Button variant="secondary" disabled>Browse Files</Button>
+                <Button
+                  variant="secondary"
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); handleBrowse(); }}
+                  data-testid="btn-browse-files"
+                >
+                  Browse Files
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="hidden"
+                  onChange={handleFileInputChange}
+                  data-testid="input-csv-file"
+                />
               </div>
 
               <div className="relative">
